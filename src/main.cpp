@@ -17,7 +17,10 @@ int main() {
 		getline(cin,command);
 		
 		//invalid command handling
-		if(command!=""){
+		if(command=="exit"){
+			break;
+		}
+		else{
 			cout<<command<<": command not found";
 		}
 		cout<<"\n";
