@@ -21,6 +21,8 @@ int main() {
 			break;
 		}
 		else if(command=="echo"){
+			char c;
+			scanf("%c",&c);
 			string argument;
 			getline(cin,argument);
 			cout<<argument;
