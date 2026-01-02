@@ -14,18 +14,14 @@ int main() {
 		
 		//command input
 		string command;
-		cin>>command;
+		getline(cin,command);
 		
 		//invalid command handling
-		if(command=="exit"){
+		if(command == "exit"){
 			break;
 		}
-		else if(command=="echo"){
-			char c;
-			scanf("%c",&c);
-			string argument;
-			getline(cin,argument);
-			cout<<argument;
+		else if(command.substr(0,4) == "echo"){
+			cout<<command.substr(5);
 		}
 		else{
 			cout<<command<<": command not found";
