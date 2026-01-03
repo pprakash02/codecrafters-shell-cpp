@@ -25,8 +25,8 @@ vector<string> split_path(string path, const char delimiter){
 
 bool fs_exists_and_exec(fs::path s){
 	error_code ec;
-	fs::perms prms = fs::status(s,ec).permissions();
-	if(ec) return false;
+	fs::perms prms = fs::status(s/*,ec*/).permissions();
+	//if(ec) return false;
 	constexpr fs::perms owner_execution = fs::perms::owner_exec;
 	return ((prms & owner_execution) != fs::perms::none);
 }
