@@ -122,14 +122,15 @@ int main() {
 			cout<<cwd;
 		}
 		else if(command[0]=="cd"){
-			if(command[1][0] == '/'){
 				error_code ec;
-				fs::current_path(command[1], ec);
+				fs::path newp = "/home";
+				if((command.size()>1) && (command[1]!="~")) newp = command[1];
+				fs::current_path(newp, ec);
 				if(ec){
-					cout<<"cd: "<<command[1]<<": No such file or directory\n";
+					cout<<"cd: "<<(string)newp<<": No such file or directory\n";
 				}
 				exec_done = true;
-			}
+		
 		}
 		else{
 			bool notfound = true;
