@@ -5,6 +5,8 @@
 #include <vector>
 #include <cstdlib>
 #include <unistd.h>
+#include <sys/wait.h>
+
 using namespace std;
 namespace fs = filesystem;
 
@@ -61,7 +63,7 @@ int main() {
 	while(true){
 		//prompt
 		cout << "$ ";
-		
+		bool exec_done = false;
 		//command input
 		string line;
 		getline(cin,line);
@@ -122,12 +124,20 @@ int main() {
 			for(auto x:path_without_delimiter){
 				string path_string = x + "/" + command[0];
 				if(fs_exists_and_exec(path_string)){
-					execv(path_string.c_str(), argv.data());
+					notfound = false;
+					pid_t prog_pid = fork ();
+					int status;
+					if(!prog_pid){
+						execv(path_string.c_str(), argv.data());
+						exit(0);
+					}
+					wait(&status);
+					exec_done = true;
 					break;
 				}
 			}
 			if(notfound)cout<<command[0]<<": command not found";
 		}
-		cout<<"\n";
+		if(not exec_done) cout<<"\n";
 	}	
 }
