@@ -114,7 +114,6 @@ int main() {
 		else{
 			bool notfound = true;
 			auto it = command.begin();
-			it++;
 			vector<char*> argv;
 			for(; it != command.end(); it++){
 				argv.push_back(const_cast<char*>((*it).c_str()));
