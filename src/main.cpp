@@ -42,7 +42,7 @@ int main() {
 	// Flush after every std::cout / std:cerr
 	cout << unitbuf;
 	cerr << unitbuf;
-	set<string> builtin_commands = {"exit","echo","type"};
+	set<string> builtin_commands = {"exit","echo","type","pwd"};
 	
 	//environment preprocessor for os path split
 	#ifdef _WIN32
@@ -112,6 +112,10 @@ int main() {
 			if(invalid){
 				cout<<argument<<": not found";
 			}
+		}
+		else if(command[0]=="pwd"){
+			string cwd = fs::current_path();
+			cout<<cwd;
 		}
 		else{
 			bool notfound = true;
