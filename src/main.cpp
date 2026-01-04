@@ -55,14 +55,14 @@ int main() {
 		const char os_pathstep = ':';
 	#endif
 	
-	// getting path from env
+	// getting home and path from env
 	const char* path_variable = getenv("PATH");
 	string path = "";
 	if(path_variable != nullptr){
 		path = path_variable;
 	}
 	vector<string> path_without_delimiter = split_string(path,os_pathstep);
-	
+	const char* home_variable = getenv("HOME");
 	//REPL implementation
 	while(true){
 		//prompt
@@ -123,7 +123,7 @@ int main() {
 		}
 		else if(command[0]=="cd"){
 				error_code ec;
-				fs::path newp = "/home";
+				fs::path newp = home_variable;
 				if((command.size()>1) && (command[1]!="~")) newp = command[1];
 				fs::current_path(newp, ec);
 				if(ec){
