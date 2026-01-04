@@ -15,8 +15,12 @@ vector<string> split_string(string line, const char delimiter){
 	// function that splits a string into vector of strings based on delimiter
 	vector<string> v;
 	string s="";
+	long long ct=0;
 	for(auto it = line.begin(); it!=line.end(); it++){
-		if(*it == delimiter){
+		if(*it == '"'){
+			ct++;
+		}
+		if(*it == delimiter && !(ct&1)){
 			v.push_back(s);
 			s="";
 		}
@@ -42,7 +46,7 @@ int main() {
 	// Flush after every std::cout / std:cerr
 	cout << unitbuf;
 	cerr << unitbuf;
-	set<string> builtin_commands = {"exit","echo","type","pwd"};
+	set<string> builtin_commands = {"exit","echo","type","pwd","cd"};
 	
 	//environment preprocessor for os path split
 	#ifdef _WIN32
@@ -116,6 +120,9 @@ int main() {
 		else if(command[0]=="pwd"){
 			string cwd = fs::current_path();
 			cout<<cwd;
+		}
+		else if(command[0]=="cd"){
+			if(command[1][0]);
 		}
 		else{
 			bool notfound = true;
