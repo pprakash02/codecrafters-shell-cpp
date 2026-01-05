@@ -61,9 +61,12 @@ vector<string> split_string(string line, const char delimiter){
 				v.push_back(">");
 				s="";
 			}
-			else if((*it)=='1'&&(*it_new)=='>'){
+			else if(((*it)=='1'||(*it)=='2')&&(*it_new)=='>'){
 				if(s!="") v.push_back(s);
-				v.push_back("1>");
+				string x;
+				x.push_back((*it));
+				x.push_back((*it_new));
+				v.push_back(x);
 				s="";
 				it=it_new;
 			}
@@ -108,6 +111,7 @@ int main() {
 	vector<string> path_without_delimiter = split_string(path,os_pathstep);
 	const char* home_variable = getenv("HOME");
 	int saved_stdout = dup(STDOUT_FILENO);
+	int saved_stderr = dup(STDERR_FILENO);
 	//REPL implementation
 	while(true){
 		//prompt
@@ -121,7 +125,8 @@ int main() {
 		vector<string> command_unedited = split_string(line,' ');
 		vector<string> command;
 		bool stdout_redirected = false;
-		int file;
+		bool stderr_redirected = false;
+		int file, file_err;
 		if(command_unedited.size()>1){
 			if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>"){
 				stdout_redirected = true;
@@ -133,9 +138,19 @@ int main() {
 				}
 				
 			}
+			else if(command_unedited[command_unedited.size()-2] == "2>"){
+					stderr_redirected = true;
+					const char * location_of_file_err = command_unedited[command_unedited.size()-1].c_str();
+					file_err = creat(location_of_file_err,0644);
+					dup2(file, STDERR_FILENO);
+					for(long long i=0;i<(long long)command_unedited.size()-2;i++){
+						command.push_back(command_unedited[i]);
+					}
+				}
 			else{
 				command = command_unedited;
 			}
+		
 		}
 		else{
 			command = command_unedited;
@@ -228,7 +243,15 @@ int main() {
 		}
 		fflush(stdout);
 		if(not exec_done) cout<<"\n";
-		dup2(saved_stdout, STDOUT_FILENO);
-		if(stdout_redirected) close(file);
+		
+		
+		if(stdout_redirected){
+			dup2(saved_stdout, STDOUT_FILENO);
+			close(file);
+		}
+		if(stderr_redirected){
+			dup2(saved_stderr, STDERR_FILENO);
+			close(file_err);
+		}
 	}	
 }
