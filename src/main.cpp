@@ -56,7 +56,13 @@ vector<string> split_string(string line, const char delimiter){
 		}
 		else{
 			it_new++;
-			if((*it)=='>'){
+			if((*it)=='>'&&(*it_new)=='>'){
+				if(s!="") v.push_back(s);
+				v.push_back(">>");
+				s="";
+				it++;
+			}
+			else if((*it)=='>'){
 				if(s!="") v.push_back(s);
 				v.push_back(">");
 				s="";
@@ -66,9 +72,14 @@ vector<string> split_string(string line, const char delimiter){
 				string x;
 				x.push_back((*it));
 				x.push_back((*it_new));
+				it_new++;
+				if((*it_new)=='>'){
+					x.push_back((*it_new));
+					it++;
+				}
 				v.push_back(x);
 				s="";
-				it=it_new;
+				it++;
 			}
 			else{
 				s+=(*it);
@@ -128,21 +139,24 @@ int main() {
 		bool stderr_redirected = false;
 		int file, file_err;
 		if(command_unedited.size()>1){
-			if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>"){
+			if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>"||command_unedited[command_unedited.size()-2] == "1>>"||command_unedited[command_unedited.size()-2] == ">>"){
 				stdout_redirected = true;
 				const char * location_of_file = command_unedited[command_unedited.size()-1].c_str();
-				file = creat(location_of_file,0644);
+				if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>") file = creat(location_of_file,0644);
+				if(command_unedited[command_unedited.size()-2] == ">>" || command_unedited[command_unedited.size()-2] == "1>>") file = open(location_of_file,O_CREAT|O_APPEND|O_WRONLY,0644);
 				dup2(file, STDOUT_FILENO);
 				for(long long i=0;i<(long long)command_unedited.size()-2;i++){
 					command.push_back(command_unedited[i]);
 				}
 				
 			}
-			else if(command_unedited[command_unedited.size()-2] == "2>"){
+			else if(command_unedited[command_unedited.size()-2] == "2>" || command_unedited[command_unedited.size()-2] == "2>>" ){
 					stderr_redirected = true;
 					const char * location_of_file_err = command_unedited[command_unedited.size()-1].c_str();
-					file_err = creat(location_of_file_err,0644);
+					if(command_unedited[command_unedited.size()-2] == "2>") file_err = creat(location_of_file_err,0644);
+					if(command_unedited[command_unedited.size()-2] == "2>>") file_err = open(location_of_file_err,O_APPEND|O_CREAT|O_WRONLY,0644);
 					dup2(file_err, STDERR_FILENO);
+					close(file_err);
 					for(long long i=0;i<(long long)command_unedited.size()-2;i++){
 						command.push_back(command_unedited[i]);
 					}
@@ -196,7 +210,7 @@ int main() {
 				
 			}
 			if(invalid){
-				cout<<argument<<": not found";
+				cerr<<argument<<": not found";
 			}
 		}
 		else if(command[0]=="pwd"){
@@ -209,7 +223,7 @@ int main() {
 				if((command.size()>1) && (command[1]!="~")) newp = command[1];
 				fs::current_path(newp, ec);
 				if(ec){
-					cout<<"cd: "<<(string)newp<<": No such file or directory\n";
+					cerr<<"cd: "<<(string)newp<<": No such file or directory\n";
 				}
 				exec_done = true;
 		
@@ -248,10 +262,12 @@ int main() {
 		if(stdout_redirected){
 			dup2(saved_stdout, STDOUT_FILENO);
 			close(file);
+			
 		}
 		if(stderr_redirected){
 			dup2(saved_stderr, STDERR_FILENO);
-			close(file_err);
+			close(file);
+			
 		}
 	}	
 }
