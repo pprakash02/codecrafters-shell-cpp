@@ -17,7 +17,7 @@ vector<string> split_string(string line, const char delimiter){
 	string s="";
 	long long ct1=0, ct2=0;
 	for(auto it = line.begin(); it!=line.end(); it++){
-		if(*it == '\\' && !(ct2&1)){	
+		if(*it == '\\' && !(ct1&1) && !(ct2&1)){	
 			it++;
 			s+=(*it);
 			continue;
