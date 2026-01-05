@@ -141,8 +141,8 @@ int main() {
 			else if(command_unedited[command_unedited.size()-2] == "2>"){
 					stderr_redirected = true;
 					const char * location_of_file_err = command_unedited[command_unedited.size()-1].c_str();
-					file_err = creat(location_of_file_err,0644);
-					dup2(file, STDERR_FILENO);
+					file_err = creat(location_of_file_err,0666);
+					dup2(file_err, STDERR_FILENO);
 					for(long long i=0;i<(long long)command_unedited.size()-2;i++){
 						command.push_back(command_unedited[i]);
 					}
