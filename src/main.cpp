@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdlib>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/wait.h>
 
 using namespace std;
@@ -17,22 +18,29 @@ vector<string> split_string(string line, const char delimiter){
 	string s="";
 	long long ct1=0, ct2=0;
 	for(auto it = line.begin(); it!=line.end(); it++){
+		auto it_new = it;
 		if(*it == '\\' && !(ct1&1) && !(ct2&1)){	
 			it++;
-			s+=(*it);
-			continue;
+			if(it!=line.end()){
+				s+=(*it);
+				continue;
+			}
+			else break;
 	
 		}
 		if(*it == '\\' && (ct1&1)){
 			it++;
-			if(*it == '"' || *it == '\\' || *it == '$' || *it == '`' || *it == '\n'){
-				s+=(*it);
+			if((it)!=line.end()){
+				if(*it == '"' || *it == '\\' || *it == '$' || *it == '`' || *it == '\n'){
+					s+=(*it);
+				}
+				else{
+					it--;
+					s+=(*it);
+				}
+				continue;
 			}
-			else{
-				it--;
-				s+=(*it);
-			}
-			continue;
+			else break;
 		}
 		if(*it == '"' && !(ct2&1)){
 			ct1++;
@@ -47,7 +55,21 @@ vector<string> split_string(string line, const char delimiter){
 			s="";
 		}
 		else{
-			s+=(*it);
+			it_new++;
+			if((*it)=='>'){
+				if(s!="") v.push_back(s);
+				v.push_back(">");
+				s="";
+			}
+			else if((*it)=='1'&&(*it_new)=='>'){
+				if(s!="") v.push_back(s);
+				v.push_back("1>");
+				s="";
+				it=it_new;
+			}
+			else{
+				s+=(*it);
+			}
 		}
 	}
 	return v;
@@ -85,6 +107,7 @@ int main() {
 	}
 	vector<string> path_without_delimiter = split_string(path,os_pathstep);
 	const char* home_variable = getenv("HOME");
+	int saved_stdout = dup(STDOUT_FILENO);
 	//REPL implementation
 	while(true){
 		//prompt
@@ -95,8 +118,28 @@ int main() {
 		getline(cin,line);
 		if(line == "") continue;
 		line+=' '; //added so that split_string works uniformly
-		vector<string> command = split_string(line,' ');
-		
+		vector<string> command_unedited = split_string(line,' ');
+		vector<string> command;
+		bool stdout_redirected = false;
+		int file;
+		if(command_unedited.size()>1){
+			if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>"){
+				stdout_redirected = true;
+				const char * location_of_file = command_unedited[command_unedited.size()-1].c_str();
+				file = creat(location_of_file,0644);
+				dup2(file, STDOUT_FILENO);
+				for(long long i=0;i<(long long)command_unedited.size()-2;i++){
+					command.push_back(command_unedited[i]);
+				}
+				
+			}
+			else{
+				command = command_unedited;
+			}
+		}
+		else{
+			command = command_unedited;
+		}
 		//invalid command handling
 		if(command[0] == "exit"){
 			break;
@@ -112,6 +155,7 @@ int main() {
 				cout<<" "<<*it;
 				it++;
 			}
+			
 		}
 		else if(command[0] == "type"){
 			string argument = "";
@@ -161,6 +205,7 @@ int main() {
 			vector<char*> argv;
 			for(; it != command.end(); it++){
 				argv.push_back(const_cast<char*>((*it).c_str()));
+				
 			}
 			argv.push_back(nullptr);
 			for(auto x:path_without_delimiter){
@@ -178,8 +223,12 @@ int main() {
 					break;
 				}
 			}
+			
 			if(notfound)cout<<command[0]<<": command not found";
 		}
+		fflush(stdout);
 		if(not exec_done) cout<<"\n";
+		dup2(saved_stdout, STDOUT_FILENO);
+		if(stdout_redirected) close(file);
 	}	
 }
