@@ -15,13 +15,18 @@ vector<string> split_string(string line, const char delimiter){
 	// function that splits a string into vector of strings based on delimiter
 	vector<string> v;
 	string s="";
-	long long ct=0;
+	long long ct1=0, ct2=0;
 	for(auto it = line.begin(); it!=line.end(); it++){
 		if(*it == '"'){
-			ct++;
+			ct1++;
+			continue;
 		}
-		if(*it == delimiter && !(ct&1)){
-			v.push_back(s);
+		if(*it == '\''){
+			ct2++;
+			continue;
+		}
+		if(*it == delimiter && !(ct1&1) && !(ct2&1)){
+			if(s != "") v.push_back(s);
 			s="";
 		}
 		else{
@@ -71,6 +76,7 @@ int main() {
 		//command input
 		string line;
 		getline(cin,line);
+		if(line == "") continue;
 		line+=' '; //added so that split_string works uniformly
 		vector<string> command = split_string(line,' ');
 		
