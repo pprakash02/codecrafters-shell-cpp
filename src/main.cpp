@@ -15,7 +15,7 @@ using namespace std;
 namespace fs = filesystem;
 vector<string> path_without_delimiter;
 set<string> builtin_commands = {"exit","echo","type","pwd","cd"};
-vector<string> executables_list={"cd","echo","exit","pwd","type"};
+vector<const char*> executables_list={"cd","echo","exit","pwd","type"};
 
 bool fs_exists_and_exec(fs::path s){
 	// function that checks if file is readable and executable
@@ -25,45 +25,44 @@ bool fs_exists_and_exec(fs::path s){
 	constexpr fs::perms owner_execution = fs::perms::owner_exec;
 	return ((prms & owner_execution) != fs::perms::none);
 }
+char * command_generator(const char* text, int state){
+	static int list_index, len;
+	const char *name;
+	if(!state){
+		list_index = 0;
+		len = strlen(text);
+	}
+	while((name = executables_list[list_index])!=nullptr){
+		list_index++;
+		if(strncmp(name,text,len)==0){
+			return strdup(name);
+		}
+	}
+	return nullptr;
+}
 
 
+char **executable_completion(const char* text, int start, int end){
+	char **matches;
+	matches = nullptr;
+	if(start==0) matches = rl_completion_matches(text,command_generator);
+	return matches;
+}
 
 void initialize_completion_list(){
 	for(fs::path x : path_without_delimiter){
 		for(const auto &entry : fs::directory_iterator(x)){
 			fs::path curr = entry.path();
 			if(fs_exists_and_exec(curr)){
-				if(builtin_commands.count(curr.filename().string())==0)executables_list.push_back(curr.filename().string());
+				if(builtin_commands.count(curr.filename().string())==0)executables_list.push_back(strdup(curr.filename().string().c_str()));
 			}
 		}
 	}
 	sort(executables_list.begin(),executables_list.end());
+	executables_list.push_back(nullptr);
+	rl_attempted_completion_function = executable_completion;
 }
 
-char* check_completion(string s){
-    for(const auto& x : executables_list){
-        if(x.size() > s.size() && s.size()>=3){
-            if(x.compare(0, s.size(), s) == 0){
-                const char *text = x.c_str();
-                text+=s.size();
-                return strdup(text);
-            }
-        }
-    }
-    return nullptr;
-}
-
-int custom_complete(int count, int key){
-	string s = rl_line_buffer;
-	char*text=check_completion(s);
-	if(text == nullptr) rl_ding();
-	else{
-		rl_insert_text(text);
-		rl_insert_text(" ");
-	}
-	free(text);
-	return 0;
-}
 
 vector<string> split_string(string line, const char delimiter){
 	// function that splits a string into vector of strings based on delimiter
@@ -170,7 +169,6 @@ int main() {
 	int saved_stderr = dup(STDERR_FILENO);
 	char *line_read;
 	initialize_completion_list();
-	rl_bind_key('\t',custom_complete);
 	using_history();
 	//REPL implementation using readline
 	while((line_read = readline("$ ")) != nullptr){
