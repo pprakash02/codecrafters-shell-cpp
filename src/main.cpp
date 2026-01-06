@@ -226,7 +226,6 @@ int main() {
 					if(command_unedited[command_unedited.size()-2] == "2>") file_err = creat(location_of_file_err,0644);
 					if(command_unedited[command_unedited.size()-2] == "2>>") file_err = open(location_of_file_err,O_APPEND|O_CREAT|O_WRONLY,0644);
 					dup2(file_err, STDERR_FILENO);
-					close(file_err);
 					for(long long i=0;i<(long long)command_unedited.size()-2;i++){
 						command.push_back(command_unedited[i]);
 					}
