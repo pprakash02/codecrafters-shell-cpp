@@ -15,7 +15,7 @@ using namespace std;
 namespace fs = filesystem;
 vector<string> path_without_delimiter;
 set<string> builtin_commands = {"exit","echo","type","pwd","cd"};
-vector<string> executables_list={"cd","echo ","exit ","pwd","type"};
+vector<string> executables_list={"cd","echo","exit","pwd","type"};
 
 bool fs_exists_and_exec(fs::path s){
 	// function that checks if file is readable and executable
@@ -59,6 +59,7 @@ int custom_complete(int count, int key){
 	if(text == nullptr) rl_ding();
 	else{
 		rl_insert_text(text);
+		rl_insert_text(" ");
 	}
 	free(text);
 	return 0;
