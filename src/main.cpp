@@ -7,11 +7,32 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <cstdio>
 #include <readline/readline.h>
 #include <readline/history.h>
 using namespace std;
 namespace fs = filesystem;
 
+int custom_complete(int count, int key){
+	string s = rl_line_buffer;
+	const char*text_exit="t";
+	const char*text_echo="o ";
+	const char*text_ty="pe";
+	const char*text_type="e";
+	if(s=="exi"){
+		rl_insert_text(text_exit);
+	}
+	if(s=="ech"){
+		rl_insert_text(text_echo);
+	}
+	if(s=="ty"){
+		rl_insert_text(text_ty);
+	}
+	if(s=="typ"){
+		rl_insert_text(text_type);
+	}
+	return 0;
+}
 
 vector<string> split_string(string line, const char delimiter){
 	// function that splits a string into vector of strings based on delimiter
@@ -125,7 +146,7 @@ int main() {
 	int saved_stdout = dup(STDOUT_FILENO);
 	int saved_stderr = dup(STDERR_FILENO);
 	char *line_read;
-	
+	rl_bind_key('\t',custom_complete);
 	using_history();
 	//REPL implementation using readline
 	while((line_read = readline("$ ")) != nullptr){
