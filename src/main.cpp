@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <algorithm>
 #include <set>
 #include <filesystem>
 #include <vector>
@@ -12,31 +13,54 @@
 #include <readline/history.h>
 using namespace std;
 namespace fs = filesystem;
+vector<string> path_without_delimiter;
+set<string> builtin_commands = {"exit","echo","type","pwd","cd"};
+vector<string> executables_list={"cd","echo ","exit ","pwd","type"};
+
+bool fs_exists_and_exec(fs::path s){
+	// function that checks if file is readable and executable
+	error_code ec;
+	fs::perms prms = fs::status(s,ec).permissions();
+	if(ec) return false;
+	constexpr fs::perms owner_execution = fs::perms::owner_exec;
+	return ((prms & owner_execution) != fs::perms::none);
+}
+
+
+
+void initialize_completion_list(){
+	for(fs::path x : path_without_delimiter){
+		for(const auto &entry : fs::directory_iterator(x)){
+			fs::path curr = entry.path();
+			if(fs_exists_and_exec(curr)){
+				if(builtin_commands.count(curr.filename().string())==0)executables_list.push_back(curr.filename().string());
+			}
+		}
+	}
+	sort(executables_list.begin(),executables_list.end());
+}
+
+char* check_completion(string s){
+    for(const auto& x : executables_list){
+        if(x.size() > s.size() && s.size()>=3){
+            if(x.compare(0, s.size(), s) == 0){
+                const char *text = x.c_str();
+                text+=s.size();
+                return strdup(text);
+            }
+        }
+    }
+    return nullptr;
+}
 
 int custom_complete(int count, int key){
 	string s = rl_line_buffer;
-	const char*text_exit="t ";
-	const char*text_echo="o ";
-	const char*text_ty="pe";
-	const char*text_type="e";
-	bool flag = true;
-	if(s=="exi"){
-		rl_insert_text(text_exit);
-		flag = false;
+	char*text=check_completion(s);
+	if(text == nullptr) rl_ding();
+	else{
+		rl_insert_text(text);
 	}
-	if(s=="ech"){
-		rl_insert_text(text_echo);
-		flag = false;
-	}
-	if(s=="ty"){
-		rl_insert_text(text_ty);
-		flag = false;
-	}
-	if(s=="typ"){
-		rl_insert_text(text_type);
-		flag = false;
-	}
-	if(flag) rl_ding();
+	free(text);
 	return 0;
 }
 
@@ -117,14 +141,6 @@ vector<string> split_string(string line, const char delimiter){
 	return v;
 }
 
-bool fs_exists_and_exec(fs::path s){
-	// function that checks if file is readable and executable
-	error_code ec;
-	fs::perms prms = fs::status(s,ec).permissions();
-	if(ec) return false;
-	constexpr fs::perms owner_execution = fs::perms::owner_exec;
-	return ((prms & owner_execution) != fs::perms::none);
-}
 
 
 
@@ -132,7 +148,7 @@ int main() {
 	// Flush after every std::cout / std:cerr
 	cout << unitbuf;
 	cerr << unitbuf;
-	set<string> builtin_commands = {"exit","echo","type","pwd","cd"};
+	
 	
 	//environment preprocessor for os path split
 	#ifdef _WIN32
@@ -147,11 +163,12 @@ int main() {
 	if(path_variable != nullptr){
 		path = path_variable;
 	}
-	vector<string> path_without_delimiter = split_string(path,os_pathstep);
+	path_without_delimiter = split_string(path,os_pathstep);
 	const char* home_variable = getenv("HOME");
 	int saved_stdout = dup(STDOUT_FILENO);
 	int saved_stderr = dup(STDERR_FILENO);
 	char *line_read;
+	initialize_completion_list();
 	rl_bind_key('\t',custom_complete);
 	using_history();
 	//REPL implementation using readline
