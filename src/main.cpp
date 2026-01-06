@@ -7,7 +7,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
-
+#include <readline/readline.h>
+#include <readline/history.h>
 using namespace std;
 namespace fs = filesystem;
 
@@ -123,14 +124,18 @@ int main() {
 	const char* home_variable = getenv("HOME");
 	int saved_stdout = dup(STDOUT_FILENO);
 	int saved_stderr = dup(STDERR_FILENO);
-	//REPL implementation
-	while(true){
-		//prompt
-		cout << "$ ";
+	char *line_read;
+	
+	using_history();
+	//REPL implementation using readline
+	while((line_read = readline("$ ")) != nullptr){
 		bool exec_done = false;
+		if(line_read && *line_read) add_history(line_read);
+		
 		//command input
-		string line;
-		getline(cin,line);
+		
+		string line=line_read;
+		free(line_read);
 		if(line == "") continue;
 		line+=' '; //added so that split_string works uniformly
 		vector<string> command_unedited = split_string(line,' ');
@@ -140,6 +145,8 @@ int main() {
 		int file, file_err;
 		if(command_unedited.size()>1){
 			if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>"||command_unedited[command_unedited.size()-2] == "1>>"||command_unedited[command_unedited.size()-2] == ">>"){
+				//redirect stdout
+				
 				stdout_redirected = true;
 				const char * location_of_file = command_unedited[command_unedited.size()-1].c_str();
 				if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>") file = creat(location_of_file,0644);
@@ -151,6 +158,8 @@ int main() {
 				
 			}
 			else if(command_unedited[command_unedited.size()-2] == "2>" || command_unedited[command_unedited.size()-2] == "2>>" ){
+					//redirect stderr
+					
 					stderr_redirected = true;
 					const char * location_of_file_err = command_unedited[command_unedited.size()-1].c_str();
 					if(command_unedited[command_unedited.size()-2] == "2>") file_err = creat(location_of_file_err,0644);
@@ -267,7 +276,8 @@ int main() {
 		if(stderr_redirected){
 			dup2(saved_stderr, STDERR_FILENO);
 			close(file);
-			
 		}
+		
 	}	
+	clear_history();
 }
