@@ -15,7 +15,7 @@ namespace fs = filesystem;
 
 int custom_complete(int count, int key){
 	string s = rl_line_buffer;
-	const char*text_exit="t";
+	const char*text_exit="t ";
 	const char*text_echo="o ";
 	const char*text_ty="pe";
 	const char*text_type="e";
