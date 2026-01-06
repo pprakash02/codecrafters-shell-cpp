@@ -14,8 +14,8 @@
 using namespace std;
 namespace fs = filesystem;
 vector<string> path_without_delimiter;
-set<string> builtin_commands = {"exit","echo","type","pwd","cd"};
-vector<const char*> executables_list={"cd","echo","exit","pwd","type"};
+set<string> builtin_commands = {"exit","echo","type","pwd","cd","history"};
+vector<const char*> executables_list={"cd","echo","exit","history","pwd","type"};
 
 bool fs_exists_and_exec(fs::path s){
 	// function that checks if file is readable and executable
@@ -24,6 +24,16 @@ bool fs_exists_and_exec(fs::path s){
 	if(ec) return false;
 	constexpr fs::perms owner_execution = fs::perms::owner_exec;
 	return ((prms & owner_execution) != fs::perms::none);
+}
+void print_history(int i, int end){
+	HIST_ENTRY **current_history=history_list();
+	current_history+=i;
+	while(i!=end){
+		cout<<right<<setw(4)<<i+1<<"  "<<((*current_history)->line)<<"\n";
+		i++;
+		current_history++;
+	}
+	
 }
 char * command_generator(const char* text, int state){
 	static int list_index, len;
@@ -74,7 +84,7 @@ vector<string> split_string(string line, const char delimiter){
 		if(*it == '\\' && !(ct1&1) && !(ct2&1)){	
 			it++;
 			if(it!=line.end()){
-				s+=(*it);
+				s.push_back(*it);
 				continue;
 			}
 			else break;
@@ -84,11 +94,11 @@ vector<string> split_string(string line, const char delimiter){
 			it++;
 			if((it)!=line.end()){
 				if(*it == '"' || *it == '\\' || *it == '$' || *it == '`' || *it == '\n'){
-					s+=(*it);
+					s.push_back(*it);
 				}
 				else{
 					it--;
-					s+=(*it);
+					s.push_back(*it);
 				}
 				continue;
 			}
@@ -134,7 +144,7 @@ vector<string> split_string(string line, const char delimiter){
 				it++;
 			}
 			else{
-				s+=(*it);
+				s.push_back(*it);
 			}
 		}
 	}
@@ -165,22 +175,28 @@ int main() {
 	}
 	path_without_delimiter = split_string(path,os_pathstep);
 	const char* home_variable = getenv("HOME");
+	const char* histfile_variable = getenv("HISTFILE");
 	int saved_stdout = dup(STDOUT_FILENO);
 	int saved_stderr = dup(STDERR_FILENO);
 	char *line_read;
 	initialize_completion_list();
+	int prev_append=0;
 	using_history();
+	read_history(histfile_variable);
 	//REPL implementation using readline
 	while((line_read = readline("$ ")) != nullptr){
 		bool exec_done = false;
-		if(line_read && *line_read) add_history(line_read);
+		if(line_read && *line_read){
+			add_history(line_read);
+			prev_append++;
+		}
 		
 		//command input
 		
 		string line=line_read;
 		free(line_read);
 		if(line == "") continue;
-		line+=' '; //added so that split_string works uniformly
+		line.push_back(' '); //added so that split_string works uniformly
 		vector<string> command_unedited = split_string(line,' ');
 		vector<string> command;
 		bool stdout_redirected = false;
@@ -223,6 +239,7 @@ int main() {
 		}
 		//invalid command handling
 		if(command[0] == "exit"){
+			write_history(histfile_variable);
 			break;
 		}
 		else if(command[0] == "echo"){
@@ -280,6 +297,34 @@ int main() {
 				exec_done = true;
 		
 		}
+		else if(command[0]=="history"){
+			long long i=0;
+			if(command.size()>1){
+				if(command[1][0]=='-'){
+					if(command[1][1]=='r'){
+						read_history(command[2].c_str());
+						continue;
+					}
+					if(command[1][1]=='w'){
+						write_history(command[2].c_str());
+						continue;
+					}
+					if(command[1][1]=='a'){
+						append_history(prev_append,command[2].c_str());
+						prev_append=0;
+						continue;
+					}
+				}
+				else{
+					i=stoi(command[1]);
+					print_history(history_length-i,history_length);
+				}
+			}
+			else{
+				print_history(i,history_length);
+			}
+			exec_done = true;
+		}
 		else{
 			bool notfound = true;
 			auto it = command.begin();
@@ -293,7 +338,7 @@ int main() {
 				string path_string = x + "/" + command[0];
 				if(fs_exists_and_exec(path_string)){
 					notfound = false;
-					pid_t prog_pid = fork ();
+					pid_t prog_pid = fork();
 					int status;
 					if(!prog_pid){
 						execv(path_string.c_str(), argv.data());
