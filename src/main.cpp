@@ -118,6 +118,8 @@ vector<string> split_string(string line, const char delimiter){
 		}
 		else{
 			it_new++;
+			auto it_prev=it;
+			it_prev--;
 			if((*it)=='>'&&(*it_new)=='>'){
 				if(s!="") v.push_back(s);
 				v.push_back(">>");
@@ -129,7 +131,7 @@ vector<string> split_string(string line, const char delimiter){
 				v.push_back(">");
 				s="";
 			}
-			else if(((*it)=='1'||(*it)=='2')&&(*it_new)=='>'){
+			else if(((*it)=='1'||(*it)=='2')&&(*it_new)=='>'&&(*it_prev)==' '){
 				if(s!="") v.push_back(s);
 				string x;
 				x.push_back((*it));
@@ -363,7 +365,7 @@ int main() {
 		}
 		if(stderr_redirected){
 			dup2(saved_stderr, STDERR_FILENO);
-			close(file);
+			close(file_err);
 		}
 		
 	}	
