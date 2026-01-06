@@ -19,18 +19,24 @@ int custom_complete(int count, int key){
 	const char*text_echo="o ";
 	const char*text_ty="pe";
 	const char*text_type="e";
+	bool flag = true;
 	if(s=="exi"){
 		rl_insert_text(text_exit);
+		flag = false;
 	}
 	if(s=="ech"){
 		rl_insert_text(text_echo);
+		flag = false;
 	}
 	if(s=="ty"){
 		rl_insert_text(text_ty);
+		flag = false;
 	}
 	if(s=="typ"){
 		rl_insert_text(text_type);
+		flag = false;
 	}
+	if(flag) rl_ding();
 	return 0;
 }
 
