@@ -183,15 +183,19 @@ int main() {
 	const char* home_variable = getenv("HOME");
 	const char* histfile_variable = getenv("HISTFILE");
 	//saving stdfile values
-	int saved_stdin = dup(STDIN_FILENO);
-	int saved_stdout = dup(STDOUT_FILENO);
-	int saved_stderr = dup(STDERR_FILENO);
+	
+	int saved_stdout = 1;
+	int saved_stderr = 2;
+	
 	//initializing readline and history
 	char *line_read;
 	initialize_completion_list();
 	int prev_append=0;
 	using_history();
 	read_history(histfile_variable);
+	
+	
+	
 	//REPL implementation using readline
 	while((line_read = readline("$ ")) != nullptr){
 		bool exec_done = false;
@@ -199,31 +203,39 @@ int main() {
 			add_history(line_read);
 			prev_append++;
 		}
+		bool stdout_redirected = false;
+		bool stderr_redirected = false;
 		
-		//command input
-		
+		//command input processing
 		string line=line_read;
 		free(line_read);
 		if(line == "") continue;
-		int pipe_needed=0;
-		string line_without_pipe;
-		for(auto x:line){
-			if(x==('|')){
-				pipe_needed=1;
-				break;
+		
+		// pipe check
+		int loop_for_pipe = 1;
+		
+		auto pipe_pos=line.find('|');
+		vector<string> cmd_vector;
+		if(pipe_pos != string::npos){
+			string s="";
+			for(auto x:line){
+				if(x!='|'){
+					s.push_back(x);
+				}
+				else{
+					if(s!="") cmd_vector.push_back(s);
+					s="";
+				}
 			}
-			else{
-				line_without_pipe.push_back(x);
-			}
+			vector<string> cmd1 = split_string(cmd_vector[0],' ');
+			 
 		}
-		if(pipe_needed){
-			
-		}
+	int counter=0;
+	while(loop_for_pipe>counter){
+		string line_without_pipe=line;
 		line_without_pipe.push_back(' '); //added so that split_string works uniformly
 		vector<string> command_unedited = split_string(line_without_pipe,' ');
 		vector<string> command;
-		bool stdout_redirected = false;
-		bool stderr_redirected = false;
 		int file, file_err;
 		if(command_unedited.size()>1){
 				if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>"||command_unedited[command_unedited.size()-2] == "1>>"||command_unedited[command_unedited.size()-2] == ">>"){
@@ -266,7 +278,7 @@ int main() {
 			for(auto x:executables_list){
 				free(x);
 			}
-			break;
+			return 0;
 		}
 		else if(command[0] == "echo"){
 			auto it = command.begin();
@@ -375,13 +387,10 @@ int main() {
 					break;
 				}
 			}
-			
-			if(notfound)cout<<command[0]<<": command not found";
+			if(notfound)cerr<<command[0]<<": command not found";
 		}
 		fflush(stdout);
 		if(not exec_done) cout<<"\n";
-		
-		
 		if(stdout_redirected){
 			dup2(saved_stdout, STDOUT_FILENO);
 			close(file);
@@ -391,6 +400,8 @@ int main() {
 			dup2(saved_stderr, STDERR_FILENO);
 			close(file_err);
 		}
+		counter++;
+	}
 		
 	}	
 	clear_history();
