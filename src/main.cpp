@@ -15,7 +15,7 @@ using namespace std;
 namespace fs = filesystem;
 vector<string> path_without_delimiter;
 set<string> builtin_commands = {"exit","echo","type","pwd","cd","history"};
-vector<const char*> executables_list={"cd","echo","exit","history","pwd","type"};
+vector<char*> executables_list;
 
 bool fs_exists_and_exec(fs::path s){
 	// function that checks if file is readable and executable
@@ -37,7 +37,7 @@ void print_history(int i, int end){
 }
 char * command_generator(const char* text, int state){
 	static int list_index, len;
-	const char *name;
+	char *name;
 	if(!state){
 		list_index = 0;
 		len = strlen(text);
@@ -60,6 +60,9 @@ char **executable_completion(const char* text, int start, int end){
 }
 
 void initialize_completion_list(){
+	for(auto x: builtin_commands){
+		executables_list.push_back(strdup((x.c_str())));
+	}
 	for(fs::path x : path_without_delimiter){
 		for(const auto &entry : fs::directory_iterator(x)){
 			fs::path curr = entry.path();
@@ -145,6 +148,7 @@ vector<string> split_string(string line, const char delimiter){
 				s="";
 				it++;
 			}
+			
 			else{
 				s.push_back(*it);
 			}
@@ -169,7 +173,7 @@ int main() {
 		const char os_pathstep = ':';
 	#endif
 	
-	// getting home and path from env
+	// getting home, path and histfile from env
 	const char* path_variable = getenv("PATH");
 	string path = "";
 	if(path_variable != nullptr){
@@ -178,8 +182,11 @@ int main() {
 	path_without_delimiter = split_string(path,os_pathstep);
 	const char* home_variable = getenv("HOME");
 	const char* histfile_variable = getenv("HISTFILE");
+	//saving stdfile values
+	int saved_stdin = dup(STDIN_FILENO);
 	int saved_stdout = dup(STDOUT_FILENO);
 	int saved_stderr = dup(STDERR_FILENO);
+	//initializing readline and history
 	char *line_read;
 	initialize_completion_list();
 	int prev_append=0;
@@ -198,26 +205,40 @@ int main() {
 		string line=line_read;
 		free(line_read);
 		if(line == "") continue;
-		line.push_back(' '); //added so that split_string works uniformly
-		vector<string> command_unedited = split_string(line,' ');
+		int pipe_needed=0;
+		string line_without_pipe;
+		for(auto x:line){
+			if(x==('|')){
+				pipe_needed=1;
+				break;
+			}
+			else{
+				line_without_pipe.push_back(x);
+			}
+		}
+		if(pipe_needed){
+			
+		}
+		line_without_pipe.push_back(' '); //added so that split_string works uniformly
+		vector<string> command_unedited = split_string(line_without_pipe,' ');
 		vector<string> command;
 		bool stdout_redirected = false;
 		bool stderr_redirected = false;
 		int file, file_err;
 		if(command_unedited.size()>1){
-			if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>"||command_unedited[command_unedited.size()-2] == "1>>"||command_unedited[command_unedited.size()-2] == ">>"){
-				//redirect stdout
-				
-				stdout_redirected = true;
-				const char * location_of_file = command_unedited[command_unedited.size()-1].c_str();
-				if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>") file = creat(location_of_file,0644);
-				if(command_unedited[command_unedited.size()-2] == ">>" || command_unedited[command_unedited.size()-2] == "1>>") file = open(location_of_file,O_CREAT|O_APPEND|O_WRONLY,0644);
-				dup2(file, STDOUT_FILENO);
-				for(long long i=0;i<(long long)command_unedited.size()-2;i++){
-					command.push_back(command_unedited[i]);
+				if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>"||command_unedited[command_unedited.size()-2] == "1>>"||command_unedited[command_unedited.size()-2] == ">>"){
+					//redirect stdout
+					
+					stdout_redirected = true;
+					const char * location_of_file = command_unedited[command_unedited.size()-1].c_str();
+					if(command_unedited[command_unedited.size()-2] == ">" || command_unedited[command_unedited.size()-2] == "1>") file = creat(location_of_file,0644);
+					if(command_unedited[command_unedited.size()-2] == ">>" || command_unedited[command_unedited.size()-2] == "1>>") file = open(location_of_file,O_CREAT|O_APPEND|O_WRONLY,0644);
+					dup2(file, STDOUT_FILENO);
+					for(long long i=0;i<(long long)command_unedited.size()-2;i++){
+						command.push_back(command_unedited[i]);
+					}
+					
 				}
-				
-			}
 			else if(command_unedited[command_unedited.size()-2] == "2>" || command_unedited[command_unedited.size()-2] == "2>>" ){
 					//redirect stderr
 					
@@ -241,6 +262,10 @@ int main() {
 		//invalid command handling
 		if(command[0] == "exit"){
 			write_history(histfile_variable);
+			//freeing memory
+			for(auto x:executables_list){
+				free(x);
+			}
 			break;
 		}
 		else if(command[0] == "echo"){
