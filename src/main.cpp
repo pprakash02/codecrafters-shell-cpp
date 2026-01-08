@@ -77,14 +77,14 @@ void initialize_completion_list(){
 }
 
 
-vector<string> split_string(string line, const char delimiter){
+vector<string> split_string(string line, const char delimiter, bool keep_quotes = true){
 	// function that splits a string into vector of strings based on delimiter
 	vector<string> v;
 	string s="";
 	long long ct1=0, ct2=0;
 	for(auto it = line.begin(); it!=line.end(); it++){
 		auto it_new = it;
-		if(*it == '\\' && !(ct1&1) && !(ct2&1)){	
+		if(*it == '\\' && !(ct1&1) && !(ct2&1)&&keep_quotes){	
 			it++;
 			if(it!=line.end()){
 				s.push_back(*it);
@@ -93,7 +93,7 @@ vector<string> split_string(string line, const char delimiter){
 			else break;
 	
 		}
-		if(*it == '\\' && (ct1&1)){
+		if(*it == '\\' && (ct1&1)&&keep_quotes){
 			it++;
 			if((it)!=line.end()){
 				if(*it == '"' || *it == '\\' || *it == '$' || *it == '`' || *it == '\n'){
@@ -107,12 +107,14 @@ vector<string> split_string(string line, const char delimiter){
 			}
 			else break;
 		}
-		if(*it == '"' && !(ct2&1)){
+		if(*it == '"' && !(ct2&1)&&keep_quotes){
 			ct1++;
+			if(not keep_quotes) s.push_back(*it);
 			continue;
 		}
-		if(*it == '\'' && !(ct1&1)){
+		if(*it == '\'' && !(ct1&1)&&keep_quotes){
 			ct2++;
+			if(not keep_quotes) s.push_back(*it);
 			continue;
 		}
 		if(*it == delimiter && !(ct1&1) && !(ct2&1)){
@@ -120,21 +122,26 @@ vector<string> split_string(string line, const char delimiter){
 			s="";
 		}
 		else{
+			bool inside_quotes = (ct1&1) || (ct2&1);
 			it_new++;
 			auto it_prev=it;
-			it_prev--;
-			if((*it)=='>'&&(*it_new)=='>'){
+			if(it!=line.begin())it_prev--;
+			bool is_redirection = false;
+		if(!keep_quotes&&!inside_quotes){
+			if(it_new!=line.end()&&(*it)=='>'&&(*it_new)=='>'){
 				if(s!="") v.push_back(s);
 				v.push_back(">>");
 				s="";
 				it++;
+				is_redirection=true;
 			}
 			else if((*it)=='>'){
 				if(s!="") v.push_back(s);
 				v.push_back(">");
 				s="";
+				is_redirection=true;
 			}
-			else if(((*it)=='1'||(*it)=='2')&&(*it_new)=='>'&&(*it_prev)==' '){
+			else if(it_new!=line.begin()&&it!=line.begin()&&((*it)=='1'||(*it)=='2')&&(*it_new)=='>'&&(*it_prev)==' '){
 				if(s!="") v.push_back(s);
 				string x;
 				x.push_back((*it));
@@ -147,92 +154,22 @@ vector<string> split_string(string line, const char delimiter){
 				v.push_back(x);
 				s="";
 				it++;
+				is_redirection=true;
 			}
-			else if((*it)=='|'&&(!ct1&1)&&(!ct2&1)){
-				if(s!="") v.push_back(s);
-				v.push_back("|");
-				s="";
-			}
-			else{
+			
+			
+		}
+		if(!is_redirection){
 				s.push_back(*it);
 			}
 		}
 	}
+	if(s!="") v.push_back(s);
 	return v;
 }
 
-vector<vector<string>> split_by_pipe(const vector<string>& tokens){
-	vector<vector<string>> commands;
-	vector<string> current_cmd;
-	for(const auto& token :tokens){
-		if(token=="|"){
-			if(!current_cmd.empty()){
-				commands.push_back(current_cmd);
-				current_cmd.clear();
-			}
-		}
-		else{
-			current_cmd.push_back(token);
-		}
-		
-	}
-	if(!current_cmd.empty()){
-		commands.push_back(current_cmd);
-	}
-	return commands;
-}
 
-void execute_pipeline(vector<vector<string>>& pipe_commands, const vector<string>& path_without_delim, int saved_stdout, int saved_stderr){
-	int num_cmds = pipe_commands.size();
-	vector<int> pipe_fds;
-	for(int i=0; i<num_cmds-1;i++){
-		int pipefd;
-		pipe(&pipefd);
-		pipe_fds.push_back(pipefd);
-		pipe_fds.push_back(pipefd);
-	}
-	
-	vector<pid_t> child_pids;
-	for(int i=0; i<num_cmds;i++){
-		pid_t pid = fork();
-		if(pid==0){
-			if(i>0){
-				dup2(pipe_fds[2*(i-1)],STDIN_FILENO);
-			}
-			if(i<num_cmds-1){
-				dup2(pipe_fds[2*i+1],STDOUT_FILENO);
-			}
-			for(int j=0;j<(int)pipe_fds.size();j++){
-				close(pipe_fds[j]);
-			}
-			vector<char*> argv;
-			for(auto x:pipe_commands[i]){
-				argv.push_back(const_cast<char*>(x.c_str()));
-			}
-			argv.push_back(nullptr);
-			
-			string cmd_name = argv[0];
-			for(const auto& x:path_without_delim){
-				string path_string = x+"/"+cmd_name;
-				if(fs_exists_and_exec(path_string)){
-					execv(path_string.c_str(),argv.data());
-				}
-			}
-			
-		}
-		else{
-			child_pids.push_back(pid);
-		}
-	}
-	for(int i=0; i<(int)pipe_fds.size();i++){
-		close(pipe_fds[i]);
-	}
-	for(const auto& pid: child_pids){
-		int status;
-		waitpid(pid,&status,0);
-	}
-	
-}
+
 
 
 int main() {
@@ -254,7 +191,7 @@ int main() {
 	if(path_variable != nullptr){
 		path = path_variable;
 	}
-	path_without_delimiter = split_string(path,os_pathstep);
+	path_without_delimiter = split_string(path,os_pathstep,false);
 	const char* home_variable = getenv("HOME");
 	const char* histfile_variable = getenv("HISTFILE");
 	//saving stdfile values
@@ -273,23 +210,22 @@ int main() {
 	
 	//REPL implementation using readline
 	while((line_read = readline("$ ")) != nullptr){
-		bool exec_done = false;
 		if(line_read && *line_read){
 			add_history(line_read);
 			prev_append++;
 		}
+		
+		string raw_line_input=line_read;
+		//command input processing
+		free(line_read);
+		if(raw_line_input == "") continue;
+	auto execute_command = [&](string line) -> bool{
+		bool exec_done = false;
 		bool stdout_redirected = false;
 		bool stderr_redirected = false;
-		
-		//command input processing
-		string line=line_read;
-		free(line_read);
-		if(line == "") continue;
-		
-		
 		string line_without_pipe=line;
 		line_without_pipe.push_back(' '); //added so that split_string works uniformly
-		vector<string> command_unedited = split_string(line_without_pipe,' ');
+		vector<string> command_unedited = split_string(line_without_pipe,' ',true);
 		vector<string> command;
 		int file, file_err;
 		if(command_unedited.size()>1){
@@ -326,14 +262,12 @@ int main() {
 		else{
 			command = command_unedited;
 		}
+		if(command.empty()) return false;
 		//invalid command handling
 		if(command[0] == "exit"){
 			write_history(histfile_variable);
 			//freeing memory
-			for(auto x:executables_list){
-				free(x);
-			}
-			break;
+			return true;
 		}
 		else if(command[0] == "echo"){
 			auto it = command.begin();
@@ -354,7 +288,7 @@ int main() {
 				argument = command[1];
 			}
 			if(argument == ""){
-				continue;
+				return false;
 			}
 			bool invalid = true;
 			if(builtin_commands.count(argument) == 0){
@@ -385,10 +319,9 @@ int main() {
 				if((command.size()>1) && (command[1]!="~")) newp = command[1];
 				fs::current_path(newp, ec);
 				if(ec){
-					cerr<<"cd: "<<(string)newp<<": No such file or directory\n";
+					cerr<<"cd: "<<(string)newp<<": No such file or directory"<<endl;
 				}
-				exec_done = true;
-		
+				exec_done=true;
 		}
 		else if(command[0]=="history"){
 			long long i=0;
@@ -396,16 +329,16 @@ int main() {
 				if(command[1][0]=='-'){
 					if(command[1][1]=='r'){
 						read_history(command[2].c_str());
-						continue;
+						return false;
 					}
 					if(command[1][1]=='w'){
 						write_history(command[2].c_str());
-						continue;
+						return false;
 					}
 					if(command[1][1]=='a'){
 						append_history(prev_append,command[2].c_str());
 						prev_append=0;
-						continue;
+						return false;
 					}
 				}
 				else{
@@ -434,9 +367,9 @@ int main() {
 					int status;
 					if(!prog_pid){
 						execv(path_string.c_str(), argv.data());
-						exit(0);
+						exit(1);
 					}
-					wait(&status);
+					waitpid(prog_pid,&status,0);
 					exec_done = true;
 					break;
 				}
@@ -454,8 +387,72 @@ int main() {
 		if(stderr_redirected){
 			close(file_err);
 		}
+		return false;
+	};
+	
 		
-		
-	}	
-	clear_history();
+	vector<string> pipeline = split_string(raw_line_input, '|',false);
+	if (pipeline.size() == 1) {
+		if(execute_command(pipeline[0])){
+			for(auto x:executables_list) free(x);
+			break;
+		}
+	} 
+    else{
+		int num_cmds = pipeline.size();
+		int pipefd[2];
+		int prev_read_fd = -1;
+		vector<pid_t> pids;
+	
+		for(int i = 0; i < num_cmds; i++){
+			if (i < num_cmds - 1) {
+				if (pipe(pipefd) < 0) {
+					perror("pipe");
+					break;
+				}
+			}
+
+			pid_t pid = fork();
+			if (pid == 0) {
+				// Child Process
+				if (prev_read_fd != -1) {
+					dup2(prev_read_fd, STDIN_FILENO);
+					close(prev_read_fd);
+				}
+				if (i < num_cmds - 1) {
+					dup2(pipefd[1], STDOUT_FILENO);
+					close(pipefd[1]);
+					close(pipefd[0]);
+				}
+				execute_command(pipeline[i]);
+				for(auto x:executables_list) free(x);
+				exit(0);
+                } 
+                else if (pid > 0) {
+                    // Parent Process
+                    pids.push_back(pid);
+                    if (prev_read_fd != -1) {
+					close(prev_read_fd);
+                    }
+                    if (i < num_cmds - 1) {
+						prev_read_fd = pipefd[0];
+						close(pipefd[1]);
+                    }
+                } 
+				else {
+					perror("fork");
+                }
+            }
+            
+            // Fix FD leak in parent
+            if(prev_read_fd != -1) close(prev_read_fd);
+
+            for (pid_t p : pids) {
+                waitpid(p, nullptr, 0);
+            }
+        }
+    }
+    rl_free_undo_list();   
+    clear_history();
+    return 0;
 }
