@@ -1,5 +1,4 @@
 
----
 
 # C++ Shell : PraSH
 
@@ -40,7 +39,7 @@ A robust, feature-rich command-line shell interface built from scratch in C++. T
 
 
 
-## 🛠 System Requirements
+##  System Requirements
 
 * **OS**: Linux / Unix-like environment (macOS, WSL).
 * **Compiler**: `g++` (supporting C++17 or later recommended).
@@ -60,14 +59,14 @@ sudo apt-get install libreadline-dev
 3. **Compile**:
 Link against the readline library during compilation.
 ```bash
-g++ main.cpp -o kaSH -lreadline
+g++ main.cpp -o PraSH -lreadline
 
 ```
 
 
 4. **Run**:
 ```bash
-./kaSH
+./PraSH
 
 ```
 
@@ -120,4 +119,3 @@ This shell is built using low-level C/C++ system programming concepts:
 * **Inter-Process Communication**: `pipe()` creates unidirectional data channels between chained commands in a pipeline.
 * **Signal & Memory Safety**: Includes proper cleanup of allocated memory for readline history and undo lists to prevent leaks.
 
----
