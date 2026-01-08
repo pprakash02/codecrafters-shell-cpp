@@ -148,7 +148,11 @@ vector<string> split_string(string line, const char delimiter){
 				s="";
 				it++;
 			}
-			
+			else if((*it)=='|'&&(!ct1&1)&&(!ct2&1)){
+				if(s!="") v.push_back(s);
+				v.push_back("|");
+				s="";
+			}
 			else{
 				s.push_back(*it);
 			}
@@ -157,7 +161,78 @@ vector<string> split_string(string line, const char delimiter){
 	return v;
 }
 
+vector<vector<string>> split_by_pipe(const vector<string>& tokens){
+	vector<vector<string>> commands;
+	vector<string> current_cmd;
+	for(const auto& token :tokens){
+		if(token=="|"){
+			if(!current_cmd.empty()){
+				commands.push_back(current_cmd);
+				current_cmd.clear();
+			}
+		}
+		else{
+			current_cmd.push_back(token);
+		}
+		
+	}
+	if(!current_cmd.empty()){
+		commands.push_back(current_cmd);
+	}
+	return commands;
+}
 
+void execute_pipeline(vector<vector<string>>& pipe_commands, const vector<string>& path_without_delim, int saved_stdout, int saved_stderr){
+	int num_cmds = pipe_commands.size();
+	vector<int> pipe_fds;
+	for(int i=0; i<num_cmds-1;i++){
+		int pipefd;
+		pipe(&pipefd);
+		pipe_fds.push_back(pipefd);
+		pipe_fds.push_back(pipefd);
+	}
+	
+	vector<pid_t> child_pids;
+	for(int i=0; i<num_cmds;i++){
+		pid_t pid = fork();
+		if(pid==0){
+			if(i>0){
+				dup2(pipe_fds[2*(i-1)],STDIN_FILENO);
+			}
+			if(i<num_cmds-1){
+				dup2(pipe_fds[2*i+1],STDOUT_FILENO);
+			}
+			for(int j=0;j<(int)pipe_fds.size();j++){
+				close(pipe_fds[j]);
+			}
+			vector<char*> argv;
+			for(auto x:pipe_commands[i]){
+				argv.push_back(const_cast<char*>(x.c_str()));
+			}
+			argv.push_back(nullptr);
+			
+			string cmd_name = argv[0];
+			for(const auto& x:path_without_delim){
+				string path_string = x+"/"+cmd_name;
+				if(fs_exists_and_exec(path_string)){
+					execv(path_string.c_str(),argv.data());
+				}
+			}
+			
+		}
+		else{
+			child_pids.push_back(pid);
+		}
+	}
+	for(int i=0; i<(int)pipe_fds.size();i++){
+		close(pipe_fds[i]);
+	}
+	for(const auto& pid: child_pids){
+		int status;
+		waitpid(pid,&status,0);
+	}
+	
+}
 
 
 int main() {
@@ -345,9 +420,8 @@ int main() {
 		}
 		else{
 			bool notfound = true;
-			auto it = command.begin();
 			vector<char*> argv;
-			for(; it != command.end(); it++){
+			for(auto it=command.begin(); it != command.end(); it++){
 				argv.push_back(const_cast<char*>((*it).c_str()));
 				
 			}
