@@ -127,7 +127,7 @@ vector<string> split_string(string line, const char delimiter, bool keep_quotes 
 			auto it_prev=it;
 			if(it!=line.begin())it_prev--;
 			bool is_redirection = false;
-		if(!keep_quotes&&!inside_quotes){
+		if(keep_quotes&&!inside_quotes){
 			if(it_new!=line.end()&&(*it)=='>'&&(*it_new)=='>'){
 				if(s!="") v.push_back(s);
 				v.push_back(">>");
